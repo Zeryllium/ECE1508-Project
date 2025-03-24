@@ -11,33 +11,38 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 
-def imshow(img):
-    # remove the impact of normalization
+def denormalize(image):
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
+    transformed_image = transforms.Normalize(mean=-(mean/std), std=1/std)(image)
+    return transformed_image
 
-    print(img.shape)
 
-    img = transforms.Normalize(mean=-(mean/std), std=1/std)(img)
+def imshow(image):
+    # remove the impact of normalization
+    denormalized_image = denormalize(image).squeeze()
 
-    plt.imshow(np.transpose(img, (1, 2, 0)))
+    plt.imshow(np.transpose(denormalized_image, (1, 2, 0)))
     plt.show()
 
-def setup():
+
+def setup(params):
     torch.manual_seed(1504)
     np.random.seed(1504)
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
+    batch_size = params.get("batch_size")
+
     train_val_dataset = DS.CIFAR10(root='./data', train=True, download=True, transform=transform)
     test_dataset = DS.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
     train_dataset, val_dataset = train_test_split(train_val_dataset, test_size=0.2)
 
-    train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=64, shuffle=True)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=True)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
     # resnet18 has a final FC layer with 1000 output features, corresponding to the 1000 image classes in ImageNet
     # replace this with 10 output features
@@ -59,9 +64,32 @@ def setup():
 
     return train_loader, val_loader, test_loader, model, device
 
+
+def test_model(model, test_loader, device):
+    model.eval()
+
+    test_accuracy = 0
+    for batch_images, batch_labels in test_loader:
+        batch_images = batch_images.to(device)
+        batch_labels = batch_labels.to(device)
+
+        batch_predictions = model.forward(batch_images)
+
+        batch_accuracy = torch.count_nonzero(torch.eq(
+            torch.argmax(torch.nn.functional.softmax(batch_predictions, dim=1), dim=1),
+            batch_labels
+        ))
+
+        test_accuracy += batch_accuracy.item()
+
+    test_accuracy = test_accuracy / len(test_loader.dataset)
+
+    return test_accuracy
+
+
 def run(params):
     print(f"Running with parameters: {params}")
-    train_loader, val_loader, test_loader, model, device = setup()
+    train_loader, val_loader, test_loader, model, device = setup(params)
     print(f"Device: {device}")
 
     model.to(device)
@@ -151,9 +179,13 @@ def run(params):
 
     torch.save(epoch_best[0], os.path.join(save_path, f"epoch_{epoch_best[1]}.pth"))
 
+    test_accuracy = test_model(model, test_loader, device)
+    print(f"Model test accuracy: {test_accuracy}")
+
 if __name__ == "__main__":
     # TODO: set up command-line argparse
     params ={
+        "batch_size": 64,
         "epochs": 20,
         "loss_fn": torch.nn.CrossEntropyLoss(),
         "optimizer": torch.optim.Adam,
