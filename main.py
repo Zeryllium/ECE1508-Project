@@ -1,7 +1,10 @@
 import os
+import logging
 from copy import deepcopy
+from datetime import datetime
 
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import torch
 import torchvision
@@ -44,10 +47,6 @@ def setup(params):
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
-    print(f"Train dataset size: {len(train_dataset)}")
-    print(f"Validation dataset size: {len(val_dataset)}")
-    print(f"Test dataset size: {len(test_dataset)}")
-
     # resnet18 has a final FC layer with 1000 output features, corresponding to the 1000 image classes in ImageNet
     # replace this with 10 output features
     #model = torch.hub.load("pytorch/vision:v0.10.0", "resnet18", pretrained=False)
@@ -66,7 +65,39 @@ def setup(params):
         # if not we should use our CPU
         device = "cpu"
 
-    return train_loader, val_loader, test_loader, model, device
+    loaders = {
+        "train": train_loader,
+        "val": val_loader,
+        "test": test_loader
+    }
+
+    return loaders, model, device
+
+
+def setup_logger(logfile_path, log_level):
+    # Filepaths cannot have colons in them
+    start_time = datetime.now().isoformat(timespec="minutes").replace(':', '-')
+
+    os.makedirs(logfile_path, exist_ok=True)
+    log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    root_logger = logging.getLogger()
+
+    file_handler = logging.FileHandler(
+        os.path.join(
+            logfile_path,
+            f"{start_time}.log"
+        )
+    )
+    file_handler.setFormatter(log_formatter)
+    root_logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    root_logger.addHandler(console_handler)
+
+    root_logger.setLevel(log_level)
+
+    return root_logger, start_time
 
 
 def test_model(model, test_loader, device):
@@ -91,10 +122,57 @@ def test_model(model, test_loader, device):
     return test_accuracy
 
 
-def run(params):
-    print(f"Running with parameters: {params}")
-    train_loader, val_loader, test_loader, model, device = setup(params)
-    print(f"Device: {device}")
+def graph_model_performance(filename, train_loss, train_acc, val_loss, val_acc, test_loss=None, test_acc=None):
+    figure_title = f"Fine-Tuned Model Performance Metrics"
+    gs = gridspec.GridSpec(8, 1)
+    figure = plt.figure(figsize=(10, 10))
+    figure.suptitle(figure_title)
+
+    ax1 = figure.add_subplot(gs[0:3, 0])
+    ax1.plot(range(len(train_loss)), train_loss, label='Training Loss')
+    ax1.plot(range(len(val_loss)), val_loss, label='Validation Loss')
+    ax1.set(xlabel="Epoch", ylabel="Loss")
+
+    ax2 = figure.add_subplot(gs[3:6, 0])
+    ax2.plot(range(len(train_acc)), train_acc, label='Training Accuracy')
+    ax2.plot(range(len(val_acc)), val_acc, label='Validation Accuracy')
+    ax2.set(xlabel="Epoch", ylabel="Accuracy", ylim=[-0.1, 1.1])
+
+    ax3 = figure.add_subplot(gs[6:8, 0])
+    ax3.axis('off')
+
+    best_epoch_train_loss = torch.argmin(torch.FloatTensor(train_loss)).item()
+    best_epoch_val_loss = torch.argmin(torch.FloatTensor(val_loss)).item()
+
+    best_epoch_metrics = [
+        [best_epoch_train_loss, train_loss[best_epoch_train_loss], train_acc[best_epoch_train_loss]],
+        [best_epoch_val_loss, val_loss[best_epoch_val_loss], val_acc[best_epoch_val_loss]]
+    ]
+    row_labels = ["Training", "Validation"]
+
+    if test_loss is not None:
+        ax1.scatter(best_epoch_val_loss, test_loss, c='#25d115', marker='x', label='Test Loss')
+        ax2.scatter(best_epoch_val_loss, test_acc, c='#25d115', marker='x', label='Test Accuracy')
+        best_epoch_metrics.append([best_epoch_val_loss, test_loss, test_acc])
+        row_labels.append("Test")
+
+    ax3.table(cellText=best_epoch_metrics, rowLabels=row_labels, colLabels=["Epoch", "Loss", "Accuracy"],
+              loc="upper center")
+
+    ax1.legend()
+    ax2.legend()
+
+    plt.tight_layout()
+    figure.show()
+    figure.savefig(filename)
+
+
+def run(params, logger, start_time):
+    logger.info(f"Running with parameters: {params}")
+    loaders, model, device = setup(params)
+    train_loader, val_loader, test_loader = loaders["train"], loaders["val"], loaders["test"]
+
+    logger.info(f"Device: {device}")
 
     model.to(device)
     optimizer = params.get("optimizer")(model.parameters(), lr=params.get("lr"))
@@ -152,50 +230,58 @@ def run(params):
         epoch_val_loss.append(val_loss / len(val_loader.dataset))
         epoch_val_acc.append(val_accuracy / len(val_loader.dataset))
 
-        print(f"Epoch: {epoch} | Train Loss: {epoch_train_loss[-1]:.4f} | Train Acc: {epoch_train_acc[-1]:.4f} || Val Loss: {epoch_val_loss[-1]:.4f} | Val Acc: {epoch_val_acc[-1]:.4f}")
+        logger.info(f"Epoch: {epoch} | Train Loss: {epoch_train_loss[-1]:.4f} | Train Acc: {epoch_train_acc[-1]:.4f} || Val Loss: {epoch_val_loss[-1]:.4f} | Val Acc: {epoch_val_acc[-1]:.4f}")
 
         if np.argmin(epoch_val_loss) == epoch:
             epoch_best = (deepcopy(model.state_dict()), epoch)
 
-
-    # plot the training and test losses
-    plt.plot([i for i in range(params.get("epochs"))], epoch_train_loss, label='Training')
-    plt.plot([i for i in range(params.get("epochs"))], epoch_val_loss, label='Validation')
-    plt.legend()
-    plt.title('Training and Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.show()
-
-    # plot the test accuracy
-    plt.plot([i+1 for i in range(params.get("epochs"))], epoch_train_acc, label='Training')
-    plt.plot([i+1 for i in range(params.get("epochs"))], epoch_val_acc, label='Validation')
-    plt.legend()
-    plt.title('Training and Validation Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.show()
-
-    print(f"Saving epoch best: {epoch_best[1]}")
-    save_path = params.get("model_save_path").format(model_name=params.get("model_name"))
+    logger.info(f"Saving epoch best: {epoch_best[1]}")
+    save_path = os.path.join(
+        params.get("model_save_path"),
+        params.get("model_name"),
+    )
     if not os.path.isdir(save_path):
         os.makedirs(save_path)
 
-    torch.save(epoch_best[0], os.path.join(save_path, f"epoch_{epoch_best[1]}.pth"))
+    torch.save(
+        epoch_best[0],
+        os.path.join(
+            save_path,
+            f"{start_time}_epoch_{epoch_best[1]}.pth"
+        )
+    )
 
     test_accuracy = test_model(model, test_loader, device)
-    print(f"Model test accuracy: {test_accuracy}")
+    logger.info(f"Model test accuracy: {test_accuracy}")
+
+    graph_model_performance(
+        filename=os.path.join(save_path, f"{start_time}_epoch_{epoch_best[1]}__graphs.png"),
+        train_loss=epoch_train_loss,
+        train_acc=epoch_train_acc,
+        val_loss=epoch_val_loss,
+        val_acc=epoch_val_acc,
+    )
 
 if __name__ == "__main__":
-    # TODO: set up command-line argparse
+    model_name = "resnet18_base"
+    model_save_path = "./models"
+
+    logger, start_time = setup_logger(
+        logfile_path= os.path.join(
+            model_save_path,
+            model_name
+        ),
+        log_level=logging.INFO
+    )
+
     params ={
         "batch_size": 64,
         "epochs": 20,
         "loss_fn": torch.nn.CrossEntropyLoss(),
         "optimizer": torch.optim.Adam,
         "lr": 1e-3,
-        "model_name": "resnet18_base",
-        "model_save_path": "./models/{model_name}/",
+        "model_name": model_name,
+        "model_save_path": model_save_path,
     }
 
-    run(params)
+    run(params, logger, start_time)
