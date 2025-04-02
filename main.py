@@ -44,6 +44,10 @@ def setup(params):
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
+    print(f"Train dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(val_dataset)}")
+    print(f"Test dataset size: {len(test_dataset)}")
+
     # resnet18 has a final FC layer with 1000 output features, corresponding to the 1000 image classes in ImageNet
     # replace this with 10 output features
     #model = torch.hub.load("pytorch/vision:v0.10.0", "resnet18", pretrained=False)

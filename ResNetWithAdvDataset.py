@@ -1,3 +1,4 @@
+# This model is trained on adversarial dataset and tested on adversarial dataset.
 import os
 from copy import deepcopy
 
