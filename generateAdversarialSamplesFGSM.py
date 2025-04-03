@@ -6,13 +6,12 @@ import torchvision.utils as vutils
 from torchvision.transforms import transforms
 
 from main import denormalize
-from main import imshow
 from main import setup
 from main import setup_logger
+from projectUtils import ADVERSARIAL_DATASET_PATH
+from projectUtils import IMAGE_FILENAME_FORMAT
+from projectUtils import MODELS_DIR
 
-MODELS_DIR = "models/resnet18_base/"
-ADVERSARIAL_DATASET_PATH = "adversarial"
-IMAGE_FILENAME_FORMAT = "adv_{index}.png"
 
 def fgsm(image, epsilon, gradient):
     modified_image = image + epsilon * gradient.sign()
