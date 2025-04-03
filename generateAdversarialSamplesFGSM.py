@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import torch
 import torchvision.utils as vutils
-from torchvision.transforms import transforms
+import torchvision.transforms.v2 as transforms
 
 from main import denormalize
 from main import setup

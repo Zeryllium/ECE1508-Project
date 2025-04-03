@@ -18,12 +18,12 @@ class AdversarialDataset(Dataset):
         self.dataset_path = os.path.join(ADVERSARIAL_DATASET_PATH, dataset_type.value)
         self.mappings = pd.read_csv(os.path.join(self.dataset_path, "mapping.csv"))
 
+        self.transform = transform
         # Ignore the transforms, process it manually
-        # self.transform = transform
-        self.transform = transforms.Compose([
-            #transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
+        # self.transform = transforms.Compose([
+        #     #transforms.ToTensor(),
+        #     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        # ])
 
     def __len__(self):
         return len(self.mappings)
@@ -37,7 +37,7 @@ class AdversarialDataset(Dataset):
             image_mapping["filename"]
         )
         # For some reason, Pytorch loads this image as a uint8 but expects float32 when it tries using transforms
-        image = decode_image(image_filename)/255
+        image = (decode_image(image_filename)/255).numpy()
         label = image_mapping["label"]
 
         if self.transform:

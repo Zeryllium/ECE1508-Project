@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torchvision
 import torchvision.datasets as DS
-import torchvision.transforms as transforms
+import torchvision.transforms.v2 as transforms
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
@@ -37,10 +37,36 @@ def imshow(image):
 def setup(params):
     torch.manual_seed(1504)
     np.random.seed(1504)
-    transform = transforms.Compose([
+
+    transform_list = [
         transforms.ToTensor(),
+    ]
+    if params.get("random_augment", False):
+        transform_list.extend(
+            [
+                # transforms.RandomAffine(
+                #     degrees=(-180, 180),
+                #     translate=(0.1, 0.1),
+                #     scale=(0.9, 1.1)
+                # ),
+                # transforms.ColorJitter(
+                #     brightness=0.1,
+                #     contrast=0.1,
+                #     saturation=0.1,
+                # ),
+                # transforms.GaussianBlur(
+                #     kernel_size=(5, 5),
+                #     sigma=(0.2, 0.2),
+                # ),
+                transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
+            ]
+        )
+
+    # Normalization is the last step when transforming the image
+    transform_list.append(
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    ])
+    )
+    transform = transforms.Compose(transform_list)
     batch_size = params.get("batch_size")
 
     if params.get("dataset", UseDataset.BASE) == UseDataset.BASE:
@@ -55,8 +81,8 @@ def setup(params):
         test_dataset = AdversarialDataset(DatasetType.TEST, transform=transform)
 
     else:
-        cifar_train_val_dataset = train_val_dataset = DS.CIFAR10(root='./data', train=True, download=True, transform=transform)
-        cifar_train_dataset, cifar_val_dataset = train_test_split(train_val_dataset, test_size=0.2)
+        cifar_train_val_dataset = DS.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        cifar_train_dataset, cifar_val_dataset = train_test_split(cifar_train_val_dataset, test_size=0.2)
 
         train_dataset = torch.utils.data.ConcatDataset([
             cifar_train_dataset,
@@ -204,6 +230,10 @@ def run(params, logger, start_time):
 
     model.to(device)
     optimizer = params.get("optimizer")(model.parameters(), lr=params.get("lr"))
+    scheduler = None
+    if params.get("scheduler") is not None:
+        scheduler = params.get("scheduler")(optimizer, params.get("epochs"))
+
     loss_fn = params.get("loss_fn")
 
     if params.get("mode") == ModelMode.TRAINING:
@@ -219,7 +249,7 @@ def run(params, logger, start_time):
             train_loss = 0
             train_accuracy = 0
 
-            for batch_images, batch_labels in train_loader:
+            for index, (batch_images, batch_labels) in enumerate(train_loader):
                 batch_images = batch_images.to(device)
                 batch_labels = batch_labels.to(device)
 
@@ -236,6 +266,9 @@ def run(params, logger, start_time):
                 optimizer.zero_grad()
                 batch_loss.backward()
                 optimizer.step()
+                if scheduler is not None:
+                    scheduler.step(epoch + index/len(train_loader))
+
             epoch_train_loss.append(train_loss/len(train_loader.dataset))
             epoch_train_acc.append(train_accuracy/len(train_loader.dataset))
 
@@ -288,6 +321,7 @@ def run(params, logger, start_time):
             val_acc=epoch_val_acc,
         )
 
+        model.load_state_dict(epoch_best[0])
         test_accuracy = test_model(model, test_loader, device)
         logger.info(f"Model test accuracy: {test_accuracy}")
 
