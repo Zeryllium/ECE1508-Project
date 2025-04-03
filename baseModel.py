@@ -12,6 +12,7 @@ if __name__ == "__main__":
     model_name = "resnet18_base"
     model_save_path = "./models"
 
+    # This is unused when ModelMode.TRAINING but you need it when ModelMode.TEST
     model_filename = "2025-04-02T17-57_epoch_4.pth"
 
     logger, start_time = setup_logger(
