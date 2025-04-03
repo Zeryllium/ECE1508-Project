@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-
 class DatasetType(Enum):
     TRAINING = "train"
     VALIDATION = "val"

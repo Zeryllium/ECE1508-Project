@@ -1,10 +1,10 @@
-import os
 import logging
+import os
 from copy import deepcopy
 from datetime import datetime
 
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
@@ -13,10 +13,11 @@ import torchvision.transforms as transforms
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
+from adversarialDataset import AdversarialDataset
 from projectUtils import DatasetType
 from projectUtils import ModelMode
 from projectUtils import UseDataset
-from adversarialDataset import AdversarialDataset
+
 
 def denormalize(image):
     mean = np.array([0.485, 0.456, 0.406])

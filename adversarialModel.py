@@ -1,12 +1,12 @@
-import os
 import logging
+import os
+
 import torch
 
-from main import setup_logger
 from main import run
+from main import setup_logger
 from projectUtils import ModelMode
 from projectUtils import UseDataset
-
 
 if __name__ == "__main__":
     model_name = "resnet18_adversarial"
