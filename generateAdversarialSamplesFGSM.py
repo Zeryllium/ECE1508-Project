@@ -37,11 +37,11 @@ def generate_adversarial_samples(params, logger):
 
         for index, (image, label) in enumerate(loader):
             image = image.to(device)
-            label = label.to(device)
+            label = label.to(device).squeeze()
 
             image.requires_grad = True
             prediction = model.forward(image)
-            pred_label = torch.argmax(torch.nn.functional.softmax(prediction, dim=1), dim=1)
+            pred_label = torch.argmax(torch.nn.functional.softmax(prediction))
 
             logger.debug(f"Model output: {pred_label} | Label: {label}")
 
@@ -56,12 +56,19 @@ def generate_adversarial_samples(params, logger):
                 adversarial_sample_prenorm = fgsm(denormalize(image), params.get("epsilon"), image.grad.data)
                 adversarial_sample = renormalize(adversarial_sample_prenorm)
                 adversarial_prediction = model.forward(adversarial_sample)
-                adversarial_pred_label = torch.argmax(torch.nn.functional.softmax(adversarial_prediction, dim=1), dim=1)
+                adversarial_pred_label = torch.argmax(torch.nn.functional.softmax(adversarial_prediction))
                 logger.debug(f"Adversarial output: {adversarial_pred_label}")
 
                 # Show the image pre-fgsm and post-fgsm
                 # Note that we only care about initially correctly predicted samples that are later incorrectly classified
                 if adversarial_pred_label != label:
+                    # DEBUG USE ONLY
+                    # denormed_image = denormalize(image)
+                    # vutils.save_image(denormed_image, "source_sample.png")
+                    # vutils.save_image(adversarial_sample_prenorm, "adversarial_sample.png")
+                    # vutils.save_image((denormed_image - adversarial_sample_prenorm) * 100, "epsilon.png")
+                    # exit(-20)
+
                     # Save the adversarial images and labels
 
                     image_path = os.path.join(
@@ -87,7 +94,7 @@ def generate_adversarial_samples(params, logger):
 
 if __name__ == '__main__':
     logger, start_time = setup_logger(ADVERSARIAL_DATASET_PATH, logging.INFO)
-    model_name = "2025-04-02T17-57_epoch_4.pth"
+    model_name = "2025-04-03T16-37_epoch_4.pth"
 
     params ={
         "batch_size": 1, # Ensure each datapoint has gradients independent of each other

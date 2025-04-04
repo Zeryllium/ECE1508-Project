@@ -17,12 +17,27 @@ from adversarialDataset import AdversarialDataset
 from projectUtils import DatasetType
 from projectUtils import ModelMode
 from projectUtils import UseDataset
-
+from resnet18 import ResNet18
 
 def denormalize(image):
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
-    transformed_image = transforms.Normalize(mean=-(mean/std), std=1/std)(image)
+    #transformed_image = transforms.Normalize(mean=-(mean/std), std=1/std)(image)
+
+    inverse_normalize = transforms.Compose(
+        [
+            transforms.Normalize(
+                mean = [0., 0., 0.],
+                std = 1/std
+            ),
+            transforms.Normalize(
+                mean = -mean,
+                std = [1., 1., 1.]
+            ),
+        ]
+    )
+
+    transformed_image = inverse_normalize(image)
     return transformed_image
 
 
@@ -104,8 +119,9 @@ def setup(params):
     # resnet18 has a final FC layer with 1000 output features, corresponding to the 1000 image classes in ImageNet
     # replace this with 10 output features
     #model = torch.hub.load("pytorch/vision:v0.10.0", "resnet18", pretrained=False)
-    model = torchvision.models.resnet18(weights=None)
-    model.fc = torch.nn.Linear(in_features=512, out_features=10, bias=True)
+    #model = torchvision.models.resnet18(weights=None)
+    #model.fc = torch.nn.Linear(in_features=512, out_features=10, bias=True)
+    model = ResNet18()
 
     if torch.backends.cuda.is_built():
         # if we have cuda

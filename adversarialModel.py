@@ -13,7 +13,7 @@ if __name__ == "__main__":
     model_save_path = "./models"
 
     # This is unused when ModelMode.TRAINING but you need it when ModelMode.TEST
-    model_filename = "2025-04-02T20-52_epoch_2.pth"
+    model_filename = "2025-04-03T17-43_epoch_3.pth"
 
     logger, start_time = setup_logger(
         logfile_path= os.path.join(
@@ -30,6 +30,7 @@ if __name__ == "__main__":
         "epochs": 20,
         "loss_fn": torch.nn.CrossEntropyLoss(),
         "optimizer": torch.optim.Adam,
+        "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR,
         "lr": 1e-3,
         "model_name": model_name,
         "model_save_path": model_save_path,

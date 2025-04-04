@@ -36,8 +36,8 @@ class AdversarialDataset(Dataset):
             self.dataset_path,
             image_mapping["filename"]
         )
-        # For some reason, Pytorch loads this image as a uint8 but expects float32 when it tries using transforms
-        image = (decode_image(image_filename)/255).numpy()
+        # For some reason, Pytorch loads this image as (C, H, W) but ToTensor wants it as (H, W, C)
+        image = decode_image(image_filename).reshape(32, 32, 3).numpy()
         label = image_mapping["label"]
 
         if self.transform:

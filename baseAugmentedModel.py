@@ -13,7 +13,7 @@ if __name__ == "__main__":
     model_save_path = "./models"
 
     # This is unused when ModelMode.TRAINING but you need it when ModelMode.TEST
-    model_filename = "2025-04-02T20-52_epoch_2.pth"
+    model_filename = "2025-04-03T18-28_epoch_3.pth"
 
     logger, start_time = setup_logger(
         logfile_path= os.path.join(
@@ -24,9 +24,9 @@ if __name__ == "__main__":
     )
 
     params ={
-        "mode": ModelMode.TRAINING,
-        "dataset": UseDataset.BASE,
-        "random_augment": False,
+        "mode": ModelMode.TEST,
+        "dataset": UseDataset.ADVERSARIAL,
+        "random_augment": True,
         "batch_size": 64,
         "epochs": 20,
         "loss_fn": torch.nn.CrossEntropyLoss(),
