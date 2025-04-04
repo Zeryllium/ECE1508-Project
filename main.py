@@ -10,6 +10,8 @@ import torch
 import torchvision
 import torchvision.datasets as DS
 import torchvision.transforms.v2 as transforms
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
@@ -173,21 +175,33 @@ def setup_logger(logfile_path, log_level):
 def test_model(model, test_loader, device):
     model.eval()
 
+    predictions = []
+    labels = []
+
     test_accuracy = 0
     for batch_images, batch_labels in test_loader:
         batch_images = batch_images.to(device)
         batch_labels = batch_labels.to(device)
 
         batch_predictions = model.forward(batch_images)
+        batch_predicted_classes = torch.argmax(torch.nn.functional.softmax(batch_predictions, dim=1), dim=1)
+
+        predictions.extend(batch_predicted_classes.detach().cpu().numpy())
+        labels.extend(batch_labels.detach().cpu().numpy())
 
         batch_accuracy = torch.count_nonzero(torch.eq(
-            torch.argmax(torch.nn.functional.softmax(batch_predictions, dim=1), dim=1),
+            batch_predicted_classes,
             batch_labels
         ))
 
         test_accuracy += batch_accuracy.item()
 
     test_accuracy = test_accuracy / len(test_loader.dataset)
+
+    conf_matrix = confusion_matrix(labels, predictions)
+    disp = ConfusionMatrixDisplay(conf_matrix)
+    disp.plot()
+    plt.show()
 
     return test_accuracy
 

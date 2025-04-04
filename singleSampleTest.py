@@ -1,22 +1,7 @@
-import logging
-import os
-from copy import deepcopy
-from datetime import datetime
-
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
-import torchvision
-import torchvision.datasets as DS
 import torchvision.transforms.v2 as transforms
-from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader
 
-from adversarialDataset import AdversarialDataset
-from projectUtils import DatasetType
-from projectUtils import ModelMode
-from projectUtils import UseDataset
 from resnet18 import ResNet18
 
 
@@ -43,7 +28,34 @@ if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = ResNet18().to(device)
+
+    # Baseline
     model.load_state_dict(torch.load("models/resnet18_base/2025-04-03T16-37_epoch_4.pth"))
+
+    print("Regular sample")
+    test_model_single_sample(model, source_image, "8", device)
+    print("Adversarial sample")
+    test_model_single_sample(model, adversarial_image, "8", device)
+
+    # Adversarial
+    model.load_state_dict(torch.load("models/resnet18_adversarial/2025-04-03T17-43_epoch_3.pth"))
+
+    print("Regular sample")
+    test_model_single_sample(model, source_image, "8", device)
+    print("Adversarial sample")
+    test_model_single_sample(model, adversarial_image, "8", device)
+
+
+    # Baseline + Augmented
+    model.load_state_dict(torch.load("models/resnet18_base_augmented/2025-04-03T18-28_epoch_3.pth"))
+
+    print("Regular sample")
+    test_model_single_sample(model, source_image, "8", device)
+    print("Adversarial sample")
+    test_model_single_sample(model, adversarial_image, "8", device)
+
+    # Adversarial + Augmented
+    model.load_state_dict(torch.load("models/resnet18_adversarial_augmented/2025-04-03T18-53_epoch_5.pth"))
 
     print("Regular sample")
     test_model_single_sample(model, source_image, "8", device)
