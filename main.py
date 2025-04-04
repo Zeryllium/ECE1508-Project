@@ -7,11 +7,10 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torchvision
 import torchvision.datasets as DS
 import torchvision.transforms.v2 as transforms
-from sklearn.metrics import confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
@@ -20,6 +19,7 @@ from projectUtils import DatasetType
 from projectUtils import ModelMode
 from projectUtils import UseDataset
 from resnet18 import ResNet18
+
 
 def denormalize(image):
     mean = np.array([0.485, 0.456, 0.406])

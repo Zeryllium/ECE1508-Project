@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
 import torch
-import torchvision.transforms.v2 as transforms
 
-from resnet18 import ResNet18
 from main import setup
 from main import test_model
 from projectUtils import UseDataset
+
 
 def test_model_d_sample(params):
     setup(params)
